@@ -64,7 +64,7 @@ class ifs2icon_vert:
         output_grid_name, _ = os.path.splitext(os.basename(fname_var))
         self.fname_var_hinterpolated= "%s/remap_%s_%s" % (self.cwd, output_grid_name,self.fname_var_hinterpolated)
 
-    def main(self):
+    def main(self):             #Main call for the ifs2icon_vert_class
         self.hi_variable()
         self.hi_parameters()
         z_full = self.gp_ml()
