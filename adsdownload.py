@@ -19,7 +19,7 @@ Parameters      :   path(str)              - Directory at which the downloaded f
                                              For Pressure Levels: (2) 1, 300, 1000 in hPa.
                     variables(str)         - Variable names to be downloaded, e.g. carbon_monoxide, hydrogen_peroxide.
 
-Note            :   For proper usage, ensure that the files containing variables, surface, and tq contain only ONE timestep.
+Note            :   cdsapi must be installed first [pip install cdsapi] and .cdsapi must exist in ${HOME}, see https://ads.atmosphere.copernicus.eu/api-how-to for more details.
 Usage           :   Call the program using:
                         python download_ads_dataset.py <model_name> <date_range> <time_res> <area> [-hres <area>] [-level <level>] <variables> ...
                     Replace <model_name>, <date_range>, <time_res>, <area>, [-hres <area>], [-level <level>], <variables>, etc., with the actual values needed for execution.
