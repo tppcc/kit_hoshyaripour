@@ -1,0 +1,23 @@
+#!/bin/bash
+#SBATCH --job-name=my_job      # Specify job name
+#SBATCH --partition=shared     # Specify partition name
+#SBATCH --account=bb1070
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=5   # Specify number of (MPI) tasks on each node
+#SBATCH --mem=1G              # Specify amount of memory needed
+#SBATCH --time=8:00:00        # Set a limit on the total run time
+#SBATCH --mail-type=FAIL       # Notify user by email in case of job failure
+#SBATCH --mail-user=uvjcu@student.kit.edu
+#SBATCH --output=my_job.o%j    # File name for standard output
+
+export OMP_NUM_THREADS=24
+set -e
+ulimit -s 204800
+
+module load python3
+
+# Execute serial programs, e.g.
+python3 -u adsdownload.py [-hres <lat,lon>] [-level 1/10] <path> <model> <start_date,end_date> <time_step> <North,West,South,East> <var1,var2,var3>
+
+echo "JOB COMPLETED"
+~                         
