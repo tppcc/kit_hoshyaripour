@@ -8,21 +8,22 @@ Function        :   ads_download
 Description     :   This function is a command line interface for downloading ADS dataset. It allows users to specify various parameters such as model name, 
                     date range, time resolution, area of interest, optional high-resolution area, level information, and variable names for downloading datasets from ADS.
 
-Parameters      :   path(str)              - Directory at which the downloaded file is stored
+Parameters      :   -hres(str, optional)   - Horizontal resolution, will use model resultion if no argument is given. E.g. 0.4,0.4
+                    -level(str, optional)  - Optional parameter. Surface/Model level/Pressure level of interest. Will assume surface parameter if no argument is given
+                                             For model level: (1) 1/60 (optional: 1/60/2 third number being resolution), selects all model levels between the given values if resolution is not given. 
+                                             For Pressure Levels: (2) 1, 300, 1000 in hPa.
+                    path(str)              - Directory at which the downloaded file is stored
                     model_name(str)        - Name of the model file to be downloaded, e.g. cams-global-reanalysis-eac4.
                     date_range(str)        - Start and end date of the desired download script, formatted as YYYY-MM-DD,YYYY-MM-DD.
                     time_res(str)          - Time hourly resolution of the desired download script, e.g. 00,06,12,18.
                     area(str)              - Area of interest defined as MAXLAT,MINLON,MINLAT,MAXLON anticlockwise starting from the north-most point, e.g. 90,-180,-90,180.
-                    -hres(str, optional)   - Horizontal resolution, will use model resultion if no argument is given. E.g. 0.4,0.4
-                    -level(str, optional)  - Optional parameter. Surface/Model level/Pressure level of interest. Will assume surface parameter if no argument is given
-                                             For model level: (1) 1/60 (optional: 1/60/2 third number being resolution), selects all model levels between the given values if resolution is not given. 
-                                             For Pressure Levels: (2) 1, 300, 1000 in hPa.
+
                     variables(str)         - Variable names to be downloaded, e.g. carbon_monoxide, hydrogen_peroxide.
+                    leadtime(str)          - Lead time of the forecast
 
 Note            :   cdsapi must be installed first [pip install cdsapi] and .cdsapi must exist in ${HOME}, see https://ads.atmosphere.copernicus.eu/api-how-to for more details.
 Usage           :   Call the program using:
-                        python download_ads_dataset.py <model_name> <date_range> <time_res> <area> [-hres <area>] [-level <level>] <variables> ...
-                    Replace <model_name>, <date_range>, <time_res>, <area>, [-hres <area>], [-level <level>], <variables>, etc., with the actual values needed for execution.
+                        python adsdownload_forecast.py [-hres <area>] [-level <level>] <path> <model_name> <date_range> <time_res> <area> <variables> <leadtime>
 '''
 
 
