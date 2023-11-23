@@ -30,7 +30,7 @@ Usage           :   Call the program using:
 
 class adsdownload_forecast:
     def __init__(self, path, model_name, date_range, time_res, area, hres, level,
-                 variables, laedtime):  # Initialise class adsdownload
+                 variables, leadtime):  # Initialise class adsdownload
         self.path = path
         self.model_name = model_name
         # Split date time
@@ -56,8 +56,8 @@ class adsdownload_forecast:
 
         self.variables = variables.replace("", "").split(",")
         if "/" in leadtime:
-            int(a), int(b), int(c) = leadtime.replace("", "").split("/")
-            self.leadtime = np.arange(a, b + 1, c)
+            a, b, c = leadtime.replace("", "").split("/")
+            self.leadtime = np.arange(int(a), int(b) + 1, int(c))
         elif "," in leadtime:
             self.leadtime = leadtime.replace("", "").split(",")
             self.leadtime = [int(x) for x in self.leadtime]
@@ -76,67 +76,72 @@ class adsdownload_forecast:
         self.cdsapirc_check()
         # Set up a loop for each day in the selected date range
         start_date, end_date = self.date_range
-        date_delta = (np.datetime64(end_date) - np.datetime64(start_date)).astype('timedelta64[D]').item().days
+        date_delta = (np.datetime64(end_date) - np.datetime64(start_date)).astype(
+            'timedelta64[D]').item().days
         for leadtime in self.leadtime:
-          for dt in np.arange(0, date_delta + 1, 1):
-              current_date = (np.datetime64(start_date) + np.timedelta64(dt, 'D')).astype(str)
-              date = "%s/%s" % (current_date, current_date)
-              fname = "%s_%s_level_%s_leadtime_%s.nc" % (self.model_name, self.pressure_or_level, current_date, leadtime)
-              fname = os.path.join(self.path, fname)
-  
-              if self.hres == None:
-                  # Initialise cdsapi instance
-                  c = cdsapi.Client()
-  
-                  c.retrieve(
-                      '%s' % (self.model_name),
-                      {
-                          'format': 'netcdf_zip',
-                          'time': self.time_res,
-                          'date': date,
-                          'area': self.area,
-                          '%s_level' % (self.pressure_or_level): self.level,
-                          'variable': self.variables,
-                          'type': 'forecast',
-                          'leadtime_hour': leadtime
-                      },
-                      '%s' % (fname))
-              elif self.hres != None:
-                  # Initialise cdsapi instance
-                  c = cdsapi.Client()
-  
-                  c.retrieve(
-                      '%s' % (self.model_name),
-                      {
-                          'format': 'netcdf_zip',
-                          'time': self.time_res,
-                          'date': date,
-                          'area': self.area,
-                          '%s_level' % (self.pressure_or_level): self.level,
-                          'variable': self.variables,
-                          'grid': self.hres
-                          'type': 'forecast',
-                          'leadtime_hour': leadtime
-                      },
-                      '%s' % (fname))
+            for dt in np.arange(0, date_delta + 1, 1):
+                current_date = (np.datetime64(start_date) + np.timedelta64(dt, 'D')).astype(str)
+                date = "%s/%s" % (current_date, current_date)
+                fname = "%s_%s_level_%s_leadtime_%s.nc" % (
+                self.model_name, self.pressure_or_level, current_date, leadtime)
+                fname = os.path.join(self.path, fname)
+
+                if self.hres == None:
+                    # Initialise cdsapi instance
+                    c = cdsapi.Client()
+
+                    c.retrieve(
+                        '%s' % (self.model_name),
+                        {
+                            'format': 'netcdf_zip',
+                            'time': self.time_res,
+                            'date': date,
+                            'area': self.area,
+                            '%s_level' % (self.pressure_or_level): self.level,
+                            'variable': self.variables,
+                            'type': 'forecast',
+                            'leadtime_hour': str(leadtime)
+                        },
+                        '%s' % (fname))
+                elif self.hres != None:
+                    # Initialise cdsapi instance
+                    c = cdsapi.Client()
+
+                    c.retrieve(
+                        '%s' % (self.model_name),
+                        {
+                            'format': 'netcdf_zip',
+                            'time': self.time_res,
+                            'date': date,
+                            'area': self.area,
+                            '%s_level' % (self.pressure_or_level): self.level,
+                            'variable': self.variables,
+                            'grid': self.hres,
+                            'type': 'forecast',
+                            'leadtime_hour': str(leadtime)
+                        },
+                        '%s' % (fname))
 
     def test_main(self):
         # Perform cdsapirc file check
         self.cdsapirc_check()
         # Set up a loop for each day in the selected date range
         start_date, end_date = self.date_range
-        date_delta = (np.datetime64(end_date) - np.datetime64(start_date)).astype('timedelta64[D]').item().days
+        date_delta = (np.datetime64(end_date) - np.datetime64(start_date)).astype(
+            'timedelta64[D]').item().days
         for dt in np.arange(0, date_delta + 1, 1):
             current_date = (np.datetime64(start_date) + np.timedelta64(dt, 'D')).astype(str)
             date = "%s/%s" % (current_date, current_date)
             fname = "%s_%s_level_%s.nc" % (self.model_name, self.pressure_or_level, current_date)
             fname = os.path.join(self.path, fname)
-            print(date, fname, self.time_res, self.area, self.hres, self.level, self.hres, self.pressure_or_level,
+            print(date, fname, self.time_res, self.area, self.hres, self.level, self.hres,
+                  self.pressure_or_level,
                   self.variables)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Command line interface for downloading ADS dataset")
+    parser = argparse.ArgumentParser(
+        description="Command line interface for downloading ADS dataset")
     parser.add_argument("path", type=str,
                         help="Directory at which the downloaded file is stored")
     parser.add_argument("model_name", type=str,
@@ -157,8 +162,9 @@ def main():
                         help="Lead time of the forecast, For slash: (1) 6/60/6 start_leadtime/end_leadtime/interval; For comma: (2) 6,12,18 leadtime to be selected")
     args = parser.parse_args()
 
-    instance = adsdownload_forecast(args.path, args.model_name, args.date_range, args.time_res, args.area, args.hres, args.level,
-                           args.variables, args.leadtime)
+    instance = adsdownload_forecast(args.path, args.model_name, args.date_range, args.time_res,
+                                    args.area, args.hres, args.level,
+                                    args.variables, args.leadtime)
     instance.main()
 
 
