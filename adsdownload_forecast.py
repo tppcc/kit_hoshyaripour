@@ -17,9 +17,10 @@ Parameters      :   -hres(str, optional)   - Horizontal resolution, will use mod
                     date_range(str)        - Start and end date of the desired download script, formatted as YYYY-MM-DD,YYYY-MM-DD.
                     time_res(str)          - Time hourly resolution of the desired download script, e.g. 00,06,12,18.
                     area(str)              - Area of interest defined as MAXLAT,MINLON,MINLAT,MAXLON anticlockwise starting from the north-most point, e.g. 90,-180,-90,180.
-
                     variables(str)         - Variable names to be downloaded, e.g. carbon_monoxide, hydrogen_peroxide.
                     leadtime(str)          - Lead time of the forecast
+                                             For slash: (1) 6/60/6 start_leadtime/end_leadtime/interval 
+                                             For comma: (2) 6,12,18 leadtime to be selected
 
 Note            :   cdsapi must be installed first [pip install cdsapi] and .cdsapi must exist in ${HOME}, see https://ads.atmosphere.copernicus.eu/api-how-to for more details.
 Usage           :   Call the program using:
@@ -27,9 +28,9 @@ Usage           :   Call the program using:
 '''
 
 
-class adsdownload:
+class adsdownload_forecast:
     def __init__(self, path, model_name, date_range, time_res, area, hres, level,
-                 variables):  # Initialise class adsdownload
+                 variables, laedtime):  # Initialise class adsdownload
         self.path = path
         self.model_name = model_name
         # Split date time
@@ -54,6 +55,12 @@ class adsdownload:
             self.pressure_or_level = "pressure"
 
         self.variables = variables.replace("", "").split(",")
+        if "/" in leadtime:
+            int(a), int(b), int(c) = leadtime.replace("", "").split("/")
+            self.leadtime = np.arange(a, b + 1, c)
+        elif "," in leadtime:
+            self.leadtime = leadtime.replace("", "").split(",")
+            self.leadtime = [int(x) for x in self.leadtime]
 
     def ml_split(self, min_level, max_level, res=1):
         ml = np.arange(int(min_level), int(max_level) + 1, int(res))
@@ -70,43 +77,48 @@ class adsdownload:
         # Set up a loop for each day in the selected date range
         start_date, end_date = self.date_range
         date_delta = (np.datetime64(end_date) - np.datetime64(start_date)).astype('timedelta64[D]').item().days
-        for dt in np.arange(0, date_delta + 1, 1):
-            current_date = (np.datetime64(start_date) + np.timedelta64(dt, 'D')).astype(str)
-            date = "%s/%s" % (current_date, current_date)
-            fname = "%s_%s_level_%s.nc" % (self.model_name, self.pressure_or_level, current_date)
-            fname = os.path.join(self.path, fname)
-
-            if self.hres == None:
-                # Initialise cdsapi instance
-                c = cdsapi.Client()
-
-                c.retrieve(
-                    '%s' % (self.model_name),
-                    {
-                        'format': 'netcdf',
-                        'time': self.time_res,
-                        'date': date,
-                        'area': self.area,
-                        '%s_level' % (self.pressure_or_level): self.level,
-                        'variable': self.variables,
-                    },
-                    '%s' % (fname))
-            elif self.hres != None:
-                # Initialise cdsapi instance
-                c = cdsapi.Client()
-
-                c.retrieve(
-                    '%s' % (self.model_name),
-                    {
-                        'format': 'netcdf',
-                        'time': self.time_res,
-                        'date': date,
-                        'area': self.area,
-                        '%s_level' % (self.pressure_or_level): self.level,
-                        'variable': self.variables,
-                        'grid': self.hres
-                    },
-                    '%s' % (fname))
+        for leadtime in self.leadtime:
+          for dt in np.arange(0, date_delta + 1, 1):
+              current_date = (np.datetime64(start_date) + np.timedelta64(dt, 'D')).astype(str)
+              date = "%s/%s" % (current_date, current_date)
+              fname = "%s_%s_level_%s_leadtime_%s.nc" % (self.model_name, self.pressure_or_level, current_date, leadtime)
+              fname = os.path.join(self.path, fname)
+  
+              if self.hres == None:
+                  # Initialise cdsapi instance
+                  c = cdsapi.Client()
+  
+                  c.retrieve(
+                      '%s' % (self.model_name),
+                      {
+                          'format': 'netcdf_zip',
+                          'time': self.time_res,
+                          'date': date,
+                          'area': self.area,
+                          '%s_level' % (self.pressure_or_level): self.level,
+                          'variable': self.variables,
+                          'type': 'forecast',
+                          'leadtime_hour': leadtime
+                      },
+                      '%s' % (fname))
+              elif self.hres != None:
+                  # Initialise cdsapi instance
+                  c = cdsapi.Client()
+  
+                  c.retrieve(
+                      '%s' % (self.model_name),
+                      {
+                          'format': 'netcdf_zip',
+                          'time': self.time_res,
+                          'date': date,
+                          'area': self.area,
+                          '%s_level' % (self.pressure_or_level): self.level,
+                          'variable': self.variables,
+                          'grid': self.hres
+                          'type': 'forecast',
+                          'leadtime_hour': leadtime
+                      },
+                      '%s' % (fname))
 
     def test_main(self):
         # Perform cdsapirc file check
@@ -141,10 +153,12 @@ def main():
                         help="(Optional: default = None [Not mandatory if only Surface parameter is selected])Surface/Model level/Pressure level of interest, (1): 1/60 (optional: 1/60/2 third number being resolution), only for model level, will select all model level between the given values if arguments are not given; (2) 1, 300, 1000 in hPa, only for Pressure Levels")
     parser.add_argument("variables", type=str,
                         help="Variable names to be downloaded, e.g. carbon_monoxide,hydrogen_peroxide")
+    parser.add_argument("leadtime", type=str,
+                        help="Lead time of the forecast, For slash: (1) 6/60/6 start_leadtime/end_leadtime/interval; For comma: (2) 6,12,18 leadtime to be selected")
     args = parser.parse_args()
 
-    instance = adsdownload(args.path, args.model_name, args.date_range, args.time_res, args.area, args.hres, args.level,
-                           args.variables)
+    instance = adsdownload_forecast(args.path, args.model_name, args.date_range, args.time_res, args.area, args.hres, args.level,
+                           args.variables, args.leadtime)
     instance.main()
 
 
