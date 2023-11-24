@@ -4,9 +4,9 @@ import argparse
 import os
 
 '''
-Function        :   ads_download
-Description     :   This function is a command line interface for downloading ADS dataset. It allows users to specify various parameters such as model name, 
-                    date range, time resolution, area of interest, optional high-resolution area, level information, and variable names for downloading datasets from ADS.
+Function        :   adsdownload_forecast
+Description     :   This function is a command line interface for downloading ADS Forecast dataset. It allows users to specify various parameters such as model name, 
+                    date range, time resolution, area of interest, optional high-resolution area, level information, variable names and forecast leadtime for downloading datasets from ADS.
 
 Parameters      :   -hres(str, optional)   - Horizontal resolution, will use model resultion if no argument is given. E.g. 0.4,0.4
                     -level(str, optional)  - Optional parameter. Surface/Model level/Pressure level of interest. Will assume surface parameter if no argument is given
