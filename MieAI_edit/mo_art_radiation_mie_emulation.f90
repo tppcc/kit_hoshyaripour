@@ -100,8 +100,8 @@ contains
         soa_file  = trim(fold) // trim(soa_file)
 
         ! Read data from CSV files
-	!call read_csv(dust_file, net%dust_lam, net%dust_real_ri, net%dust_imag_ri)
-	!call read_csv(ss_file,     net%ss_lam,   net%ss_real_ri, net%dust_imag_ri)
+	call read_csv(dust_file, net%dust_lam, net%dust_real_ri, net%dust_imag_ri)
+	call read_csv(ss_file,     net%ss_lam,   net%ss_real_ri, net%ss_imag_ri)
 	call read_csv(ocb_file,   net%ocb_lam,  net%ocb_real_ri,  net%ocb_imag_ri)
 	call read_csv(wat_file,   net%wat_lam,  net%wat_real_ri,  net%wat_imag_ri)
 	call read_csv(sulf_file, net%sulf_lam, net%sulf_real_ri, net%sulf_imag_ri)
@@ -223,7 +223,7 @@ contains
 
             ! Interpolate refractive indices for components
             call interp_ri( net%dust_lam,  net%dust_real_ri,  net%dust_imag_ri, lam, n1, k1)
-            call interp_ri( net%seasalt_lam,  net%seasalt_real_ri,  net%seasalt_imag_ri, lam, n2, k2)
+            call interp_ri( net%ss_lam,  net%ss_real_ri,  net%ss_imag_ri, lam, n2, k2)
 	        call interp_ri( net%ocb_lam,  net%ocb_real_ri,  net%ocb_imag_ri, lam, n3, k3)
 
             ! Calculate real and imaginary parts for core
