@@ -62,7 +62,7 @@ class EnvParameters:
         }
         # Path to source file grid (ICON), can be obtained in MPI server. ICON-NWP: R3B6
         self.source_grid = {
-            'dwd_art': '/Users/corneliustai/prj/icon_grid_0005_R03B06_R.nc',
+            'dwd_art': '/Users/corneliustai/prj/icon_grid_0004_R03B07_R.nc',
             'dwd_art_eu': '/path/to/grid',
             'dwd_nwp': '/path/to/grid',
             'dwd_nwp_eu': '/path/to/grid'
