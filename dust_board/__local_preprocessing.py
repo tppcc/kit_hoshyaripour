@@ -24,11 +24,18 @@ def LocalTime(time_obj):
 
 def Grib2nc(fpath, source_grid, target_grid):
     os.system('module load cdo')
-    # Assign grid to
-    os.system(
-        # f'cdo -f nc4 -remapnn,f{target_grid} -setgrid,f{source_grid} icon_pollen_description.txt f{fpath} f{fpath}.nc')
-        f'cdo -f nc4 -remapnn,{target_grid} -setgrid,{source_grid} {fpath} {fpath}.nc')
 
+    # Skip -remapnn if lat-lon in file name of fpath
+    if 'lat-lon' not in os.path.split(fpath)[-1]:
+        # Assign grid to
+        os.system(
+            f'cdo -f nc4 -remapnn,{target_grid} -setgrid,{source_grid} {fpath} {fpath}.nc')
+
+    elif 'lat-lon' in os.path.split(fpath)[-1]:
+        os.system(
+            f'cdo -f nc4 {fpath} {fpath}.nc'
+        )
+    # return the fpath attached with .nc extension for plotting
     fpath_nc = fpath + '.nc'
 
     return fpath_nc
@@ -75,7 +82,7 @@ def Plotting(da, vname, model, parameters_dict):
         plt.ylabel('Latitude')
         plt.colorbar(cf, shrink=0.8, extend='both')
 
-        plt.savefig(os.path.join(plot_dir, vname,f'{vname}_{plot_time}.jpg'), bbox_inches='tight')
+        plt.savefig(os.path.join(plot_dir, f'{vname}_{plot_time}.jpg'), bbox_inches='tight')
         plt.close()
 
 
