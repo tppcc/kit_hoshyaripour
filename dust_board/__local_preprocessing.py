@@ -58,32 +58,36 @@ def Plotting(da, vname, model, parameters_dict):
     time = da.time
 
     for i in range(len(time)):
-        plot_time = np.datetime_as_string(da.time.values[i], unit='m')
-        plot_data = da.loc[dict(time=plot_time)].squeeze()
+        try:
+            plot_time = np.datetime_as_string(da.time.values[i], unit='m')
+            plot_data = da.loc[dict(time=plot_time)].squeeze()
 
-        # Convert K to C
-        if vname == 't_2m':
-            plot_data = plot_data - 273.15
+            # Convert K to C
+            if vname == 't_2m':
+                plot_data = plot_data - 273.15
 
-        title_init_time = LocalTime(datetime.datetime.fromisoformat(env_dict.model_init_time))
-        ctime = da.time.values[i].astype('datetime64[s]').tolist()
-        title_current_time = LocalTime(ctime)
+            title_init_time = LocalTime(datetime.datetime.fromisoformat(env_dict.model_init_time))
+            ctime = da.time.values[i].astype('datetime64[s]').tolist()
+            title_current_time = LocalTime(ctime)
 
-        # Define the levels to be 20, between the max and min value with 20 % margin
-        levels = np.linspace(plot_data.min() - (plot_data.min() * 0.2),
-                             plot_data.max() + (plot_data.max() * 0.2), 20)
+            # Define the levels to be 20, between the max and min value with 20 % margin
+            levels = np.linspace(plot_data.min() - (plot_data.min() * 0.2),
+                                 plot_data.max() + (plot_data.max() * 0.2), 20)
 
-        plt.figure(figsize=[12, 6])
-        cf = plt.contourf(plot_data.lon, plot_data.lat, plot_data, levels=levels, cmap='RdBu_r')
-        plt.title(f'{env_dict.long_names[vname]}', loc='center')
-        plt.title('Init. time: ' + title_init_time, loc='left', fontsize=10)
-        plt.title('Current: ' + title_current_time, loc='right', fontsize=10)
-        plt.xlabel('Longitude')
-        plt.ylabel('Latitude')
-        plt.colorbar(cf, shrink=0.8, extend='both')
+            plt.figure(figsize=[12, 6])
+            cf = plt.contourf(plot_data.lon, plot_data.lat, plot_data, levels=levels, cmap='RdBu_r')
+            plt.title(f'{env_dict.long_names[vname]}', loc='center')
+            plt.title('Init. time: ' + title_init_time, loc='left', fontsize=10)
+            plt.title('Current: ' + title_current_time, loc='right', fontsize=10)
+            plt.xlabel('Longitude')
+            plt.ylabel('Latitude')
+            plt.colorbar(cf, shrink=0.8, extend='both')
 
-        plt.savefig(os.path.join(plot_dir, f'{vname}_{plot_time}.jpg'), bbox_inches='tight')
-        plt.close()
+            plt.savefig(os.path.join(plot_dir, f'{vname}_{plot_time}.jpg'), bbox_inches='tight')
+            plt.close()
+
+        except:
+            print(f'An error occured when plotting for {fname} at {i}th time step')
 
 
 def DataProcessing(model, parameters_dict):
