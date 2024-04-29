@@ -87,7 +87,7 @@ def Plotting(da, vname, model, parameters_dict):
             plt.close()
 
         except:
-            print(f'An error occured when plotting for {fname} at {i}th time step')
+            print(f'An error occured when plotting for {vname} at {i}th time step')
 
 
 def DataProcessing(model, parameters_dict):
