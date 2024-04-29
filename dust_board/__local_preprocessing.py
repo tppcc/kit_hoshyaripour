@@ -26,14 +26,14 @@ def Grib2nc(fpath, source_grid, target_grid):
     os.system('module load cdo')
 
     # Skip -remapnn if lat-lon in file name of fpath
-    if 'lat-lon' not in os.path.split(fpath)[-1]:
+    if 'regular' not in os.path.split(fpath)[-1]:
         # Assign grid to
         os.system(
             f'cdo -f nc4 -remapnn,{target_grid} -setgrid,{source_grid} {fpath} {fpath}.nc')
 
-    elif 'lat-lon' in os.path.split(fpath)[-1]:
+    else:
         os.system(
-            f'cdo -f nc4 {fpath} {fpath}.nc'
+            f'cdo -f nc4 copy {fpath} {fpath}.nc'
         )
     # return the fpath attached with .nc extension for plotting
     fpath_nc = fpath + '.nc'
@@ -43,40 +43,39 @@ def Grib2nc(fpath, source_grid, target_grid):
 
 def Plotting(da, vname, model, parameters_dict):
     r"""
-    Plot the data array and pass it to <local_directory>/plots/
-    :param da:
-    :param model:
-    :param parameters_dict:
+    Plot the data array with coastlines and save the plots to <local_directory>/plots/
+    :param da: xarray DataArray containing the data to plot
+    :param vname: variable name, used for titles and file names
+    :param model: model name, used for organizing output directories
+    :param parameters_dict: dictionary with plotting environment settings
     :return: None
     """
     env_dict = parameters_dict
-
-    plot_dir = os.path.join(env_dict.local_directory[model], vname, 'plots')
+    plot_dir = os.path.join(env_dict['local_directory'][model], vname, 'plots')
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
-    time = da.time
+    time = da.time.values
 
-    for i in range(len(time)):
+    for i, t in enumerate(time):
         try:
-            plot_time = np.datetime_as_string(da.time.values[i], unit='m')
-            plot_data = da.loc[dict(time=plot_time)].squeeze()
+            plot_time = np.datetime_as_string(t, unit='m')
+            plot_data = da.sel(time=t).squeeze()
 
-            # Convert K to C
             if vname == 't_2m':
-                plot_data = plot_data - 273.15
+                plot_data = plot_data - 273.15  # Convert K to C
 
-            title_init_time = LocalTime(datetime.datetime.fromisoformat(env_dict.model_init_time))
-            ctime = da.time.values[i].astype('datetime64[s]').tolist()
-            title_current_time = LocalTime(ctime)
+            title_init_time = datetime.datetime.fromisoformat(env_dict['model_init_time']).strftime('%Y-%m-%d %H:%M')
+            title_current_time = t.astype('datetime64[s]').tolist().strftime('%Y-%m-%d %H:%M')
 
-            # Define the levels to be 20, between the max and min value with 20 % margin
             levels = np.linspace(plot_data.min() - (plot_data.min() * 0.2),
                                  plot_data.max() + (plot_data.max() * 0.2), 20)
 
             plt.figure(figsize=[12, 6])
-            cf = plt.contourf(plot_data.lon, plot_data.lat, plot_data, levels=levels, cmap='RdBu_r')
-            plt.title(f'{env_dict.long_names[vname]}', loc='center')
+            ax = plt.axes(projection=ccrs.PlateCarree())  # Define the map projection
+            cf = ax.contourf(plot_data.lon, plot_data.lat, plot_data.values, levels=levels, cmap='RdBu_r', extend='both')
+            ax.coastlines()  # Add coastlines
+            plt.title(f'{env_dict["long_names"][vname]}', loc='center')
             plt.title('Init. time: ' + title_init_time, loc='left', fontsize=10)
             plt.title('Current: ' + title_current_time, loc='right', fontsize=10)
             plt.xlabel('Longitude')
@@ -86,9 +85,8 @@ def Plotting(da, vname, model, parameters_dict):
             plt.savefig(os.path.join(plot_dir, f'{vname}_{plot_time}.jpg'), bbox_inches='tight')
             plt.close()
 
-        except:
-            print(f'An error occured when plotting for {vname} at {i}th time step')
-
+        except Exception as e:
+            print(f'An error occurred when plotting for {vname} at {i}th time step: {e}')
 
 def DataProcessing(model, parameters_dict):
     r"""
@@ -118,7 +116,7 @@ def DataProcessing(model, parameters_dict):
         da_list = []
         for fpath in fnames:
             fpath_nc = Grib2nc(fpath, source_grid,
-                               target_grid)  # Assuming Grib2nc is a function defined elsewhere
+                               target_grid)
             da = xr.load_dataset(fpath_nc, engine='netcdf4')
             varkey = list(da.keys())
             da_list.append(da[varkey[0]])
