@@ -142,7 +142,7 @@ contains
             status_code = status_code + 1
         ENDIF
         IF (art_config(jg)%iart_seasalt > 0) THEN
-            status_code = statis_code + 2
+            status_code = status_code + 2
         END IF
 
         ! Match-Case behaviour: Compute different real_core and imag_core depending on status_code
