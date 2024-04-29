@@ -214,7 +214,7 @@ contains
 
             ! Calculate fraction of components in the core
             f_dust    = tracer(1) / core_part
-            f_seas = tracer(2) / core_part
+            f_seas    = tracer(2) / core_part
             f_soot    = tracer(3) / core_part
             ! Calculate fraction of components in the shell
             f_wat     = tracer(4) / shell_part
@@ -503,7 +503,7 @@ SUBROUTINE get_shell_fraction(tracer, frac, jg)
             status_code = status_code + 1
         ENDIF
         IF (art_config(jg)%iart_seasalt > 0) THEN
-            status_code = statis_code + 2
+            status_code = status_code + 2
         END IF
 
         ! Match-Case behaviour: Compute different real_core and imag_core depending on status_code
@@ -518,12 +518,10 @@ SUBROUTINE get_shell_fraction(tracer, frac, jg)
             fc_mass = core_part / total_mass
 
             f_dust    = tracer(1) / core_part
-            f_seas    = tracer(2) / core_part
-            f_soot    = tracer(3) / core_part
             ! Calculate fraction of components in the shell
-            f_wat     = tracer(4) / shell_part
-            f_sul     = tracer(5) / shell_part
-            f_org     = (tracer(6) + tracer(7)) / shell_part
+            f_wat     = tracer(2) / shell_part
+            f_sul     = tracer(3) / shell_part
+            f_org     = (tracer(4) + tracer(5)) / shell_part
 
             ! Compute shell and core diameter
             dens_core =  f_soot * rho_soot
@@ -569,6 +567,9 @@ SUBROUTINE get_shell_fraction(tracer, frac, jg)
             core_part  = tracer(1:3)
             shell_part = SUM(tracer(4:7))
             total_mass = SUM(tracer(:))
+
+            ! comute mass fraction
+            fc_mass = core_part / total_mass
 
             f_dust     = tracer(1) / core_part
             f_seas     = tracer(2) / core_part
