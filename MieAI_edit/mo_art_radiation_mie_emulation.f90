@@ -25,7 +25,7 @@ contains
 !!
 SUBROUTINE get_opt_mie_ai(tracer, rho, jb, nlong, nshort, ks, ke, jcs, jce, jg, fields, tau_vr, tau_s_vr, tauasy_vr , net)
     TYPE(t_fields_2mom), INTENT(IN) :: fields
-    type(MieAI) :: net
+    type(MieAI), INTENT(IN) :: net
 
     ! Input 
     INTEGER, INTENT(IN)   :: jb, nlong, nshort, ks, ke, jcs, jce, jg
@@ -41,22 +41,8 @@ SUBROUTINE get_opt_mie_ai(tracer, rho, jb, nlong, nshort, ks, ke, jcs, jce, jg, 
     real(wp), DIMENSION(:), ALLOCATABLE :: tracer1, opt
     real(wp) :: ext, sca, ssa, asy, sig=2, mu, conc
 
-    CHARACTER(LEN=MAX_CHAR_LENGTH) :: fold, min_max_file, quantile_transform_file, MieAI_file
     CHARACTER(LEN=MAX_CHAR_LENGTH) :: thisroutine = "mo_art_radiation_mie_emulation:get_opt_mie_ai"
 
-    ! File paths
-    fold = art_config(jg)%cart_MieAI_files
-    min_max_file = 'mlp_min_max.csv'
-    quantile_transform_file = 'quantile_transform.csv'
-    MieAI_file  = 'MieAI.txt'
-      
-    ! Concatenate folder path to filenames  
-    min_max_file = trim(fold) // trim(min_max_file)
-    quantile_transform_file = trim(fold) // trim(quantile_transform_file)
-    MieAI_file  = trim(fold) // trim(MieAI_file)
-
-    ! Load refractive indices
-    fold = art_config(jg)%cart_ri
     call net%load_ri(fold)
 
     ! Define tracer strings based on fields%name

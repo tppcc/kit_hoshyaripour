@@ -1,0 +1,15 @@
+#!/bin/bash  
+#SBATCH   --nodes=1
+#SBATCH   --cpus-per-task=5
+#SBATCH   --mem=600mb
+#SBATCH   --time=70:00:00           
+#SBATCH   -J  test_bwbatch               # Specify job name
+#SBATCH   --mail-user=giorgio.taverna@kit.edu
+#SBATCH   --mail-type=BEGIN,END,FAIL
+
+echo "Start kpp script execution at $(date)"
+
+./dynho.exe
+
+
+
