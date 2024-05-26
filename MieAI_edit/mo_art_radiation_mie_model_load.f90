@@ -363,6 +363,7 @@ SUBROUTINE mie_model_load(net)
         MieAI_file  = trim(fold) // trim(MieAI_file)
 
         call net%load_model(net, MieAI_file, min_max_file, quantile_transform_file)
+        call net%load_ri(fold)
 
 end SUBROUTINE mie_model_load
 

@@ -43,8 +43,6 @@ SUBROUTINE get_opt_mie_ai(tracer, rho, jb, nlong, nshort, ks, ke, jcs, jce, jg, 
 
     CHARACTER(LEN=MAX_CHAR_LENGTH) :: thisroutine = "mo_art_radiation_mie_emulation:get_opt_mie_ai"
 
-    call net%load_ri(fold)
-
     ! Define tracer strings based on fields%name
     SELECT CASE(TRIM(fields%name))
         CASE('mixed_acc')            
