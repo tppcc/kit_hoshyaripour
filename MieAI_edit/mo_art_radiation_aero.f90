@@ -130,9 +130,7 @@ SUBROUTINE art_radiation_aero(zaeq1,zaeq2,zaeq3,zaeq4,zaeq5,    &
   
   type(MieAI) :: net           !< Neural Network for MieAI module
 
-  
-  if(art_config(jg)%iart_MieAI > 0) then
-    CALL mie_model_load(net)   ! Initialise Mie AI model here
+
 
   LOGICAL ::                 &
     &  lwarning_flag
@@ -156,6 +154,9 @@ SUBROUTINE art_radiation_aero(zaeq1,zaeq2,zaeq3,zaeq4,zaeq5,    &
   tau_a_tot_vr  = 0.0_wp
   tauasy_tot_vr = 0.0_wp
   asy_tot_vr    = 0.0_wp
+
+  if(art_config(jg)%iart_MieAI > 0) then
+    CALL mie_model_load(net)   ! Initialise Mie AI model here
 
   ! Shortcuts (tracer container, rho and dz)
   tracer    => p_nh_state(jg)%prog(nnew_rcf(jg))%tracer
