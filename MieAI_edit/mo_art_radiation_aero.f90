@@ -131,6 +131,9 @@ SUBROUTINE art_radiation_aero(zaeq1,zaeq2,zaeq3,zaeq4,zaeq5,    &
   type(MieAI) :: net           !< Neural Network for MieAI module
 
   
+  if(art_config(jg)%iart_MieAI > 0) then
+    CALL mie_model_load(net)   ! Initialise Mie AI model here
+
   LOGICAL ::                 &
     &  lwarning_flag
   
@@ -179,7 +182,6 @@ SUBROUTINE art_radiation_aero(zaeq1,zaeq2,zaeq3,zaeq4,zaeq5,    &
 	SELECT CASE (TRIM(fields%name))
 	     CASE('mixed_acc', 'mixed_coa')
 		if(art_config(jg)%iart_MieAI > 0) then
-             CALL mie_model_load(net)   ! Initialise Mie AI model here
 	           CALL get_opt_mie_ai(tracer,rho,jb,nlong,nshort,ks,ke,jcs,jce,jg,fields,tau_vr,tau_s_vr,tauasy_vr, net)
 		else
 		   CALL get_tau_vr(tracer,rho,jb,nlong,nshort,ks,ke,jcs,jce,jg,fields,tau_vr,var_med_dia)
