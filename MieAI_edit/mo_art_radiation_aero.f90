@@ -32,8 +32,7 @@ MODULE mo_art_radiation_aero
   USE mo_art_modes,                     ONLY: t_fields_2mom
   USE mo_art_impl_constants,            ONLY: IART_VARNAMELEN
   USE mo_art_data,                      ONLY: p_art_data
-  use mo_art_radiation_mie_emulation, 	only: get_opt_mie_ai
-  use mo_art_radiation_mie_model_load,   only: mie_model_load, MieAI
+  use mo_art_radiation_mie_emulation, 	only: get_opt_mie_ai, mie_model_load, MieAI
 
 
   IMPLICIT NONE
