@@ -155,7 +155,7 @@ SUBROUTINE art_radiation_aero(zaeq1,zaeq2,zaeq3,zaeq4,zaeq5,    &
   asy_tot_vr    = 0.0_wp
 
   if(art_config(jg)%iart_MieAI > 0) then
-    CALL mie_model_load(net)   ! Initialise Mie AI model here
+    CALL mie_model_load(net, jg)   ! Initialise Mie AI model here
 
   ! Shortcuts (tracer container, rho and dz)
   tracer    => p_nh_state(jg)%prog(nnew_rcf(jg))%tracer

@@ -764,7 +764,7 @@ module mo_art_radiation_mie_emulation
           close(1)
   end subroutine read_quantile_data
 
-  SUBROUTINE mie_model_load(net)   ! Subroutine for loading the model in radiation_aero to reduce io
+  SUBROUTINE mie_model_load(net, jg)   ! Subroutine for loading the model in radiation_aero to reduce io
     CHARACTER(LEN=MAX_CHAR_LENGTH) :: fold, min_max_file, quantile_transform_file, MieAI_file
     type(MieAI), intent(inout) :: net
         ! File paths
