@@ -779,6 +779,9 @@ module mo_art_radiation_mie_emulation
         MieAI_file  = trim(fold) // trim(MieAI_file)
 
         call net%load_model(net, MieAI_file, min_max_file, quantile_transform_file)
+
+        ! Load Reflective Index for the Neural Network
+        fold = art_config(jg)%cart_ri
         call net%load_ri(fold)
 
 end SUBROUTINE mie_model_load
