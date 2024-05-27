@@ -75,11 +75,11 @@ module mo_art_radiation_mie_model_load
         CHARACTER(LEN=MAX_CHAR_LENGTH) :: soa_file
 
         dust_file = 'BI_USE_NorthSahara_newformat.txt'
-	ss_file   = 'BI_USE_SS_RH70.txt'
-	ocb_file  = 'RI_OCBC30.txt'
-	wat_file  = 'BI_USE_H2O.txt'
-	sulf_file = 'BI_USE_75Sulf215K.txt'
-	soa_file  = 'BI_USE_SOA.txt' 
+        ss_file   = 'BI_USE_SS_RH70.txt'
+        ocb_file  = 'RI_OCBC30.txt'
+        wat_file  = 'BI_USE_H2O.txt'
+        sulf_file = 'BI_USE_75Sulf215K.txt'
+        soa_file  = 'BI_USE_SOA.txt' 
 
         ! Append folder path to filenames
         dust_file = trim(fold) // trim(dust_file)
