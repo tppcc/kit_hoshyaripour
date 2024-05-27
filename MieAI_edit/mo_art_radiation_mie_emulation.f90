@@ -56,6 +56,7 @@ module mo_art_radiation_mie_emulation
     
     public :: get_opt_mie_ai
     public :: mie_model_load
+    public :: MieAI
   
   contains
     subroutine load_model_params(net, MieAI_file, min_max_file, quantile_transform_file)
