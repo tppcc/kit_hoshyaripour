@@ -766,7 +766,8 @@ module mo_art_radiation_mie_emulation
 
   SUBROUTINE mie_model_load(net, jg)   ! Subroutine for loading the model in radiation_aero to reduce io
     CHARACTER(LEN=MAX_CHAR_LENGTH) :: fold, min_max_file, quantile_transform_file, MieAI_file
-    type(MieAI), intent(inout) :: net
+    type(MieAI), intent(inout) :: net ! Neutral Network object with type MieAI
+    INTEGER,INTENT(in) :: jg ! Domain ID
         ! File paths
         fold = art_config(jg)%cart_MieAI_files
         min_max_file = 'mlp_min_max.csv'
