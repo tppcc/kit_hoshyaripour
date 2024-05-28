@@ -1,12 +1,14 @@
 module mo_art_radiation_mie_emulation
-    use mo_kind, 		    only: wp
-    USE mo_exception,         ONLY: finish
-    USE mo_impl_constants,    ONLY: SUCCESS, MAX_CHAR_LENGTH
-    use mo_art_config, 	    only: art_config
-    USE mo_art_modes,  	    ONLY: t_fields_2mom
-    USE mo_art_data,   	    ONLY: t_art_data
-    USE mo_art_data,          ONLY: p_art_data
-  
+    use mo_kind, 		                only: wp
+    USE mo_exception,                   ONLY: finish
+    USE mo_impl_constants,              ONLY: SUCCESS, MAX_CHAR_LENGTH
+    use mo_art_config, 	                only: art_config
+    USE mo_art_modes,  	                ONLY: t_fields_2mom
+    USE mo_art_data,   	                ONLY: t_art_data
+    USE mo_art_data,                    ONLY: p_art_data
+    USE mo_var_metadata_types,          ONLY: t_var_metadata_dynamic
+    USE mo_var_list,                    ONLY: get_tracer_info_dyn_by_idx
+
     use mod_kinds, 	    only: ik, rk
     use mod_network, 	    only: network_type
   
@@ -129,109 +131,61 @@ module mo_art_radiation_mie_emulation
           real(wp) :: core_part, shell_part 
           real(wp) :: f_soot, f_dust, f_wat, f_sul, f_salt, f_org
           real(wp) :: n1, n2, n3, n4, n5, n6, k1, k2, k3, k4, k5, k6
-  
+          INTEGER, DIMENSION(:), ALLOCATABLE  :: tracer1 ! Tracer container, that loops over all possible tracer, 
+                                                         !set to 0 when the respective tracer does not exist
   
   
           ! Calculate fraction of components in the core
-          ! Edit: Introduced status_code.
-          ! Behaviour:
-          !   status_code == 0: Soot only
-          !   status_code == 1: Dust exists
-          !   status_code == 2: Sea Salt exists
-          !   status_code == 3: Dust & Sea Salt exists
-          status_code = 0
-          IF (art_config(jg)%iart_dust > 0) THEN
-              status_code = status_code + 1
-          ENDIF
-          IF (art_config(jg)%iart_seasalt > 0) THEN
-              status_code = status_code + 2
+          ! Variable core and shell size
+
+          ! Define tracer strings based on fields%name
+          ! Edit: Split the tracer names into core and shell
+          SELECT CASE(TRIM(fields%name))
+          CASE('mixed_acc')            
+              tracer_str = [CHARACTER(LEN=MAX_CHAR_LENGTH) :: 'dust_mixed_acc', 'seas_mixed_acc', 'soot_mixed_acc', 'h2o_mixed_acc', &
+                      &'so4_mixed_acc', 'nh4_mixed_acc', 'no3_mixed_acc']
+          CASE('mixed_coa')
+              tracer_str = [CHARACTER(LEN=MAX_CHAR_LENGTH) :: 'dust_mixed_coa', 'seas_mixed_coa', 'soot_mixed_coa', 'h2o_mixed_coa',  &
+                      &'so4_mixed_coa', 'nh4_mixed_coa', 'no3_mixed_coa']
+          CASE DEFAULT
+              tracer_str = [CHARACTER(LEN=MAX_CHAR_LENGTH) :: ]
+              core_str = [CHARACTER(LEN=MAX_CHAR_LENGTH) :: ]
+              shell_str = [CHARACTER(LEN=MAX_CHAR_LENGTH) :: ]
+          END SELECT
+           
+          ALLOCATE(tracer1(SIZE(tracer_str)), opt(4))
+ 
+          IF (SIZE(tracer_str) /= 0) THEN
+                  ALLOCATE(tracer1(SIZE(tracer_str)), ierror(SIZE(tracer_str)))
+                  DO i = 1, SIZE(tracer_str)
+                      CALL p_art_data(jg)%dict_tracer%get(tracer_str(i), tracer1(i), ierror(i))
+                      IF(ierror(i) /= SUCCESS) THEN tracer1(i) = 0.0_wp ! set the corresponding tracer(idx) to 0 if error raised
+                    END IF
+                  END DO
           END IF
+          
+      ! Dust, seasalt and soot as core
+      ! Extract components
+      core_part  = SUM(tracer(1:3))
+      shell_part = SUM(tracer(4:7))
   
-          ! Match-Case behaviour: Compute different real_core and imag_core depending on status_code
-          select case (status_code)
-          case (0) ! Soot only
-              ! Extract components
-              core_part  = tracer(1)
-              shell_part = SUM(tracer(2:5))
+      ! Calculate fraction of components in the core
+      f_dust    = tracer(1) / core_part
+      f_seas    = tracer(2) / core_part
+      f_soot    = tracer(3) / core_part
+      ! Calculate fraction of components in the shell
+      f_wat     = tracer(4) / shell_part
+      f_sul     = tracer(5) / shell_part
+      f_org     = (tracer(6) + tracer(7)) / shell_part
   
-              ! Calculate fraction of components in the core
-              f_soot = tracer(1) / core_part
-              ! Calculate fraction of components in the shell
-              f_wat  = tracer(2) / shell_part
-              f_sul  = tracer(3) / shell_part
-              f_org  = (tracer(4) + tracer(5)) / shell_part
+      ! Interpolate refractive indices for components
+      call interp_ri( net%dust_lam,  net%dust_real_ri,  net%dust_imag_ri, lam, n1, k1)
+      call interp_ri( net%ss_lam,  net%ss_real_ri,  net%ss_imag_ri, lam, n2, k2)
+      call interp_ri( net%ocb_lam,  net%ocb_real_ri,  net%ocb_imag_ri, lam, n3, k3)
   
-              ! Interpolate refractive indices for components
-              call interp_ri( net%ocb_lam,  net%ocb_real_ri,  net%ocb_imag_ri, lam, n3, k3)
-  
-              ! Calculate real and imaginary parts for core
-              real_core  =  f_soot * n3
-              imag_core  =  f_soot * k3
-  
-          case (1) ! Dust and soot only
-              ! Extract components
-              core_part  = SUM(tracer(1:2))
-              shell_part = SUM(tracer(3:6))
-  
-              ! Calculate fraction of components in the core
-              f_dust = tracer(1) / core_part
-              f_soot = tracer(2) / core_part
-              ! Calculate fraction of components in the shell
-              f_wat  = tracer(3) / shell_part
-              f_sul  = tracer(4) / shell_part
-              f_org  = (tracer(5) + tracer(6)) / shell_part
-  
-              ! Interpolate refractive indices for components
-              call interp_ri( net%dust_lam,  net%dust_real_ri,  net%dust_imag_ri, lam, n1, k1)
-              call interp_ri( net%ocb_lam,  net%ocb_real_ri,  net%ocb_imag_ri, lam, n3, k3)
-  
-              ! Calculate real and imaginary parts for core
-              real_core  =  f_dust * n1 + f_soot * n3
-              imag_core  =  f_dust * k1 + f_soot * k3
-  
-          case (2) ! Seasalt and soot only
-              ! Extract components
-              core_part  = SUM(tracer(1:2))
-              shell_part = SUM(tracer(3:6))
-  
-              ! Calculate fraction of components in the core
-              f_seas = tracer(1) / core_part
-              f_soot    = tracer(2) / core_part
-              ! Calculate fraction of components in the shell
-              f_wat     = tracer(3) / shell_part
-              f_sul     = tracer(4) / shell_part
-              f_org     = (tracer(5) + tracer(6)) / shell_part
-  
-              ! Interpolate refractive indices for components
-              call interp_ri( net%seasalt_lam,  net%seasalt_real_ri,  net%seasalt_imag_ri, lam, n2, k2)
-              call interp_ri( net%ocb_lam,  net%ocb_real_ri,  net%ocb_imag_ri, lam, n3, k3)
-  
-              ! Calculate real and imaginary parts for core
-              real_core  =  f_seas * n2 + f_soot * n3
-              imag_core  =  f_seas * k2 + f_soot * k3
-          case (3) ! Dust, seasalt and soot
-              ! Extract components
-              core_part  = SUM(tracer(1:3))
-              shell_part = SUM(tracer(4:7))
-  
-              ! Calculate fraction of components in the core
-              f_dust    = tracer(1) / core_part
-              f_seas    = tracer(2) / core_part
-              f_soot    = tracer(3) / core_part
-              ! Calculate fraction of components in the shell
-              f_wat     = tracer(4) / shell_part
-              f_sul     = tracer(5) / shell_part
-              f_org     = (tracer(6) + tracer(7)) / shell_part
-  
-              ! Interpolate refractive indices for components
-              call interp_ri( net%dust_lam,  net%dust_real_ri,  net%dust_imag_ri, lam, n1, k1)
-              call interp_ri( net%ss_lam,  net%ss_real_ri,  net%ss_imag_ri, lam, n2, k2)
-              call interp_ri( net%ocb_lam,  net%ocb_real_ri,  net%ocb_imag_ri, lam, n3, k3)
-  
-              ! Calculate real and imaginary parts for core
-              real_core  =  f_dust * n1 + f_seas * n2 +f_soot * n3
-              imag_core  =  f_dust * k1 + f_seas * k2 +f_soot * k3
-          end select
+      ! Calculate real and imaginary parts for core
+      real_core  =  f_dust * n1 + f_seas * n2 +f_soot * n3
+      imag_core  =  f_dust * k1 + f_seas * k2 +f_soot * k3
   
   
   
@@ -288,7 +242,7 @@ module mo_art_radiation_mie_emulation
           deallocate(mie_input1, input)
     end subroutine get_prediction
   
-    subroutine perform_emulation(net, mu, sig, jspec, tracer1, opt)
+    subroutine perform_emulation(net, mu, sig, jspec, tracer1, opt, core_str, shell_str)
       class(MieAI), intent(inout) :: net
   
           ! Parameters
@@ -373,23 +327,24 @@ module mo_art_radiation_mie_emulation
   
       !local variables
       INTEGER :: jk, jk_vr, jc, i, jspec
-      CHARACTER(LEN=MAX_CHAR_LENGTH), ALLOCATABLE :: tracer_str(:)
+      CHARACTER(LEN=MAX_CHAR_LENGTH), ALLOCATABLE :: core_str(:), shell_str(:)
       INTEGER, DIMENSION(:), ALLOCATABLE  :: tr_idx, ierror
       real(wp), DIMENSION(:), ALLOCATABLE :: tracer1, opt
-      real(wp) :: ext, sca, ssa, asy, sig=2, mu, conc
+      real(wp) :: ext, sca, ssa, asy, sig, mu, conc
   
       CHARACTER(LEN=MAX_CHAR_LENGTH) :: thisroutine = "mo_art_radiation_mie_emulation:get_opt_mie_ai"
   
       ! Define tracer strings based on fields%name
+      ! Edit: Split the tracer names into core and shell
       SELECT CASE(TRIM(fields%name))
           CASE('mixed_acc')            
               tracer_str = [CHARACTER(LEN=MAX_CHAR_LENGTH) :: 'soot_mixed_acc', 'h2o_mixed_acc', 'so4_mixed_acc', 'nh4_mixed_acc', &
                            &'no3_mixed_acc']
-  
+
           CASE('mixed_coa')
               tracer_str = [CHARACTER(LEN=MAX_CHAR_LENGTH) :: 'soot_mixed_coa', 'h2o_mixed_coa', 'so4_mixed_coa', 'nh4_mixed_coa', &
                   	&'no3_mixed_coa']
-  
+
           CASE DEFAULT
               tracer_str = [CHARACTER(LEN=MAX_CHAR_LENGTH) :: ]
   	    !ALLOCATE(tracer_str(0)) ! Allocate empty array
@@ -424,9 +379,11 @@ module mo_art_radiation_mie_emulation
                       END DO              
   
                       mu = fields%diameter(jc, jk, jb)
+                      ! Get sigma from fieds%info object
+                      sig = fields%info%sg_ini
   
                       ! Emulate optical properties
-                      call net%emulate(mu, sig, jspec, tracer1, opt)                    
+                      call net%emulate(mu, sig, jspec, tracer1, opt, core_str, shell_str)                    
   		    !print *, opt
   		    
   		    !(ext, sca, ssa, asy) = opt  
@@ -464,6 +421,15 @@ module mo_art_radiation_mie_emulation
           real(wp) :: dens_core, dens_shell, total_mass, fc_mass, fc_vol, dc_dt
           real(wp) :: rho_dust, rho_soot, rho_seas, rho_sul, rho_wat, rho_org
           real(wp) :: core_part, shell_part, f_soot, f_dust, f_wat, f_sul, f_salt, f_org
+
+          TYPE(t_var_metadata_dynamic) :: info_dyn ! tracer metadata
+          real(wp) :: rho ! Density object
+          INTEGER, DIMENSION(:), ALLOCATABLE  :: tracer1 ! Tracer container, that loops over all possible tracer, 
+                                                         !set to 0 when the respective tracer does not exist
+
+          ! Calling for density for each species (Unfinished, check for how to call list of species)
+          CALL get_tracer_info_dyn_by_idx(this_list, itr3, info_dyn)
+          CALL info_dyn%tracer%opt_meta%get('rho', rho, ierror)
           
           rho_dust = 2.60_wp
           rho_soot = 1.25_wp
@@ -472,104 +438,61 @@ module mo_art_radiation_mie_emulation
           rho_sul = 1.80_wp
           rho_wat = 1.0_wp
           rho_org = 1.35_wp
-  
+
           ! Calculate fraction of components in the core
-          ! Edit: Introduced status_code.
-          ! Behaviour:
-          !   status_code == 0: Soot only
-          !   status_code == 1: Dust exists
-          !   status_code == 2: Sea Salt exists
-          !   status_code == 3: Dust & Sea Salt exists
-          status_code = 0
-          IF (art_config(jg)%iart_dust > 0) THEN
-              status_code = status_code + 1
-          ENDIF
-          IF (art_config(jg)%iart_seasalt > 0) THEN
-              status_code = status_code + 2
+          ! Variable core and shell size
+
+          ! Define tracer strings based on fields%name
+          ! Edit: Split the tracer names into core and shell
+          SELECT CASE(TRIM(fields%name))
+          CASE('mixed_acc')            
+              tracer_str = [CHARACTER(LEN=MAX_CHAR_LENGTH) :: 'dust_mixed_acc', 'seas_mixed_acc', 'soot_mixed_acc', 'h2o_mixed_acc', &
+                      &'so4_mixed_acc', 'nh4_mixed_acc', 'no3_mixed_acc']
+          CASE('mixed_coa')
+              tracer_str = [CHARACTER(LEN=MAX_CHAR_LENGTH) :: 'dust_mixed_coa', 'seas_mixed_coa', 'soot_mixed_coa', 'h2o_mixed_coa',  &
+                      &'so4_mixed_coa', 'nh4_mixed_coa', 'no3_mixed_coa']
+          CASE DEFAULT
+              tracer_str = [CHARACTER(LEN=MAX_CHAR_LENGTH) :: ]
+              core_str = [CHARACTER(LEN=MAX_CHAR_LENGTH) :: ]
+              shell_str = [CHARACTER(LEN=MAX_CHAR_LENGTH) :: ]
+          END SELECT
+           
+          ALLOCATE(tracer1(SIZE(tracer_str)), opt(4))
+ 
+          IF (SIZE(tracer_str) /= 0) THEN
+                  ALLOCATE(tracer1(SIZE(tracer_str)), ierror(SIZE(tracer_str)))
+                  DO i = 1, SIZE(tracer_str)
+                      CALL p_art_data(jg)%dict_tracer%get(tracer_str(i), tracer1(i), ierror(i))
+                      IF(ierror(i) /= SUCCESS) THEN tracer1(i) = 0.0_wp ! set the corresponding tracer(idx) to 0 if error raised
+                    END IF
+                  END DO
           END IF
+
+          ! Dust, seasalt and soot as core
+          core_part  = tracer(1:3)
+          shell_part = SUM(tracer(4:7))
+          total_mass = SUM(tracer(:))
   
-          ! Match-Case behaviour: Compute different real_core and imag_core depending on status_code
-          select case (status_code)
-          case (0) ! Soot only
-              ! Extract components
-              core_part  = tracer(1)
-              shell_part = SUM(tracer(2:5))
-              total_mass = SUM(tracer(:))
+          ! comute mass fraction
+          fc_mass = core_part / total_mass
   
-              ! comute mass fraction
-              fc_mass = core_part / total_mass
+          f_dust     = tracer(1) / core_part
+          f_seas     = tracer(2) / core_part
+          f_soot     = tracer(3) / core_part
+          ! Calculate fraction of components in the shell
+          f_wat      = tracer(4) / shell_part
+          f_sul      = tracer(5) / shell_part
+          f_org      = (tracer(6) + tracer(7)) / shell_part
   
-              f_dust    = tracer(1) / core_part
-              ! Calculate fraction of components in the shell
-              f_wat     = tracer(2) / shell_part
-              f_sul     = tracer(3) / shell_part
-              f_org     = (tracer(4) + tracer(5)) / shell_part
-  
-              ! Compute shell and core diameter
-              dens_core =  f_soot * rho_soot
-              dens_shell =  (f_org * rho_org + f_wat * rho_wat + f_sul * rho_sul)
-  
-          case (1) ! Dust and soot only
-              core_part  = tracer(1:2)
-              shell_part = SUM(tracer(3:6))
-              total_mass = SUM(tracer(:))
-  
-              ! comute mass fraction
-              fc_mass    = core_part / total_mass
-  
-              f_dust     = tracer(1) / core_part
-              f_soot     = tracer(2) / core_part
-              ! Calculate fraction of components in the shell
-              f_wat      = tracer(3) / shell_part
-              f_sul      = tracer(4) / shell_part
-              f_org      = (tracer(5) + tracer(6)) / shell_part
-  
-              ! Compute shell and core diameter
-              dens_core  =  f_dust * rho_dust + f_soot * rho_soot
-              dens_shell =  (f_org * rho_org + f_wat * rho_wat + f_sul * rho_sul)
-          case (2) ! Seasalt and soot only
-              core_part  = tracer(1:2)
-              shell_part = SUM(tracer(3:6))
-              total_mass = SUM(tracer(:))
-  
-              ! comute mass fraction
-              fc_mass    = core_part / total_mass
-  
-              f_seas     = tracer(1) / core_part
-              f_soot     = tracer(2) / core_part
-              ! Calculate fraction of components in the shell
-              f_wat      = tracer(3) / shell_part
-              f_sul      = tracer(4) / shell_part
-              f_org      = (tracer(5) + tracer(6)) / shell_part
-  
-              ! Compute shell and core diameter
-              dens_core  =  f_seas * rho_seas + f_soot * rho_soot
-              dens_shell =  (f_org * rho_org + f_wat * rho_wat + f_sul * rho_sul)
-          case (3) ! Dust, seasalt and soot
-              core_part  = tracer(1:3)
-              shell_part = SUM(tracer(4:7))
-              total_mass = SUM(tracer(:))
-  
-              ! comute mass fraction
-              fc_mass = core_part / total_mass
-  
-              f_dust     = tracer(1) / core_part
-              f_seas     = tracer(2) / core_part
-              f_soot     = tracer(3) / core_part
-              ! Calculate fraction of components in the shell
-              f_wat      = tracer(4) / shell_part
-              f_sul      = tracer(5) / shell_part
-              f_org      = (tracer(6) + tracer(7)) / shell_part
-  
-              ! Compute shell and core diameter
-              dens_core  =  f_dust * rho_dust + f_seas * rho_seas + f_soot * rho_soot
-              dens_shell =  (f_org * rho_org + f_wat * rho_wat + f_sul * rho_sul)
-          end select
+          ! Compute shell and core diameter
+          dens_core  =  f_dust * rho_dust + f_seas * rho_seas + f_soot * rho_soot
+          dens_shell =  (f_org * rho_org + f_wat * rho_wat + f_sul * rho_sul)
   
           ! Finally, compute the fraction of shell in terms of total diameter
           fc_vol = fc_mass / (fc_mass + (1 - fc_mass) * dens_core / dens_shell)
           dc_dt = fc_vol ** (1.0 / 3.0)
           frac = 1.0 - dc_dt
+
   END SUBROUTINE get_shell_fraction
       
   subroutine mod2bin(mu, sig, nbins, bins, x_range, dlogd)
