@@ -129,13 +129,11 @@ module mo_art_radiation_mie_emulation
           
           ! Local variables
           real(wp) :: core_part, shell_part 
-          !real(wp) :: f_soot, f_dust, f_wat, f_sul, f_salt, f_org
           real(wp) :: n1, n2, n3, n4, n5, n6, k1, k2, k3, k4, k5, k6
           real(wp)DIMENSION(:), ALLOCATABLE :: tracer1,  f_tracer
           ! Tracer container, that loops over all possible tracer, set to 0 when the respective tracer doesnot exis
   
           ! Calculate fraction of components in the core
-          ! Variable core and shell size
 
           ! Define tracer strings based on fields%name
           ! Edit: Split the tracer names into core and shell
@@ -444,14 +442,6 @@ module mo_art_radiation_mie_emulation
             END IF
             END DO
           END IF
-          
-          !rho_dust = 2.60_wp
-          !rho_soot = 1.25_wp
-          !rho_seas = 1.70_wp
-  
-          !rho_sul = 1.80_wp
-          !rho_wat = 1.0_wp
-          !rho_org = 1.35_wp
 
           ! Calculate fraction of components in the core
           ! Variable core and shell size
