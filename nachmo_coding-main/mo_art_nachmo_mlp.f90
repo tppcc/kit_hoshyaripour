@@ -1,5 +1,15 @@
-module nachmo_coding
+module mo_art_nachmo_mlp
     USE ftorch
+    
+    IMPLICIT NONE
+
+    private
+
+    public :: load_model
+    public :: emulate
+
+    CONTAINS
+
     subroutine load_model(path, model)
         ! Loading the torch model using FTorch
         ! Input:
@@ -15,7 +25,17 @@ module nachmo_coding
         model = torch_module_load(path) ! "/my/saved/TorchScript/model.pt"
     end subroutine load_model
 
-    subroutine emulate(arr, arr_out, n_inputs, model)
+    subroutine nachmo_emulate(arr, arr_out, n_inputs, model)
+        ! Emulate Chemical reaction based on nachmo_mlp.
+        ! Input:
+        !       arr (array, allocatable)        : Input array object
+        !       arr_out (array, allocatable)    : Empty outptu array object
+        !       n_inptus (integer)              : Number of input tensors
+        !       model (torch_module)            : Loaded Torch model
+
+
+        ! Output:
+        !       model (torch_module)    : Model object, return inplace loaded model
         real(wp), dimension(:), allocatable, intent(in) :: arr
         real(wp), dimension(:), allocatable, intent(inout) :: arr_out
         integer, intent(in) :: n_inputs
@@ -28,11 +48,14 @@ module nachmo_coding
         integer, parameter :: out_dims = 1
         integer :: out_layout(out_dims) = [1]
 
+        ! Transpose the inpt array from column major (Fortran style) to row major (C++ style)
         model_inputs_arr(1) = torch_tensor_from_array(arr, in_layout, torch_kCPU)
         model_output = torch_tensor_from_array(arr_out, out_layout, torch_kCPU)
 
         call torch_module_forward(model, model_input_arr, n_inputs, model_output)
 
-    end subroutine emulate
+    end subroutine nachmo_emulate
 
-end module nachmo_coding
+end module mo_art_nachmo_mlp
+
+
