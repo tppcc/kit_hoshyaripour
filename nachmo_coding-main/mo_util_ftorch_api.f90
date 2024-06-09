@@ -22,7 +22,8 @@ module mo_util_ftorch_api
         procedure :: load_model => model_load
         procedure :: emulate => inference
     END TYPE ftorch_net
-    public :: nachmo_coding
+
+    public :: ftorch_net
 
     CONTAINS
 
