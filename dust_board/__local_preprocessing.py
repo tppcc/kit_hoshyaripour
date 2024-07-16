@@ -1,11 +1,13 @@
 import os
 import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
 import numpy as np
 import pytz
 import xarray as xr
 import datetime
-
+import matplotlib.colors as mcolors
+import math
 
 def LocalTime(time_obj):
     r"""
@@ -23,39 +25,90 @@ def LocalTime(time_obj):
 
 
 def Grib2nc(fpath, source_grid, target_grid):
-    os.system('module load cdo')
+    #os.system('module load cdo')
+    # Assign grid to
+    os.system(
+        f'grib_set -r -s packingType=grid_simple {fpath} {fpath}.grib1')
+    os.system(
+    #    # f'cdo -f nc4 -remapnn,f{target_grid} -setgrid,f{source_grid} icon_pollen_description.txt f{fpath} f{fpath}.nc')
+        f'cdo -f nc4 -remapnn,{target_grid} -setgrid,{source_grid} {fpath}.grib1 {fpath}.nc')
 
-    # Skip -remapnn if lat-lon in file name of fpath
-    if 'regular' not in os.path.split(fpath)[-1]:
-        # Assign grid to
-        os.system(
-            f'cdo -f nc4 -remapnn,{target_grid} -setgrid,{source_grid} {fpath} {fpath}.nc')
-
-    else:
-        os.system(
-            f'cdo -f nc4 copy {fpath} {fpath}.nc'
-        )
-    # return the fpath attached with .nc extension for plotting
     fpath_nc = fpath + '.nc'
 
     return fpath_nc
 
+def LoadCmap(fpath):
+    cmap_data = np.loadtxt(fpath, skiprows=2, delimiter=' ')
+
+    if cmap_data.max() > 10.:
+        cmap = mcolors.ListedColormap(cmap_data/255.)
+    else:
+        cmap = mcolors.ListedColormap(cmap_data)
+
+    return cmap
+
+def Dust2PM(field, mean, sigma, parameters_dict):
+    r"""
+    Convert Dust mass concentration to PM2.5 and PM 10 based on the CDF of log-normal mode
+    :param field: Dust field to be computed
+    :type: dict-like(xr.DataArray)
+    :param mean: Mean of the dust distribution
+    :type: float
+    :param sigma: The Standard Deviation of the dust distribution
+    :type: float
+    :return: Computed PM2.5 field
+    :rtype: xr.DataArray
+    :return: Computed PM10 field
+    :rtype: xr.DataArray
+    """
+
+    env_dict = parameters_dict
+
+    for vname in env_dict.:
+
+    pm25 = LogNorm2CDF(da, mean, sigma, 2.5e-6)
+    pm10 = LogNorm2CDF(da, mean, sigma, 1e-5)
+
+    # Format the datetime object
+    return pm25, pm10
+
+
+def LogNorm2CDF(da, mean, sigma, d_upper):
+    r"""
+    Compute the CDF of a log-normal distrubution function
+    :param field: Total concentration field
+    :type: xr.DataArray
+    :param mean: Mean of the dust distribution
+    :type: float
+    :param sigma: The Standard Deviation of the dust distribution
+    :type: float
+    :param d_upper: Upper limit of the CDF
+    :return: Computed CDF
+    :rtype: xr.DataArray
+    """
+
+    cdf = da * 0.5 * (1 + math.erf( (math.log(d_upper / mean)) / (math.sqrt(2) * math.log(sigma)) ))
+
+    return cdf
 
 def Plotting(da, vname, model, parameters_dict):
     r"""
-    Plot the data array with coastlines and save the plots to <local_directory>/plots/
-    :param da: xarray DataArray containing the data to plot
-    :param vname: variable name, used for titles and file names
-    :param model: model name, used for organizing output directories
-    :param parameters_dict: dictionary with plotting environment settings
+    Plot the data array and pass it to <local_directory>/plots/
+    :param da:
+    :param model:
+    :param parameters_dict:
     :return: None
     """
     env_dict = parameters_dict
-    plot_dir = os.path.join(env_dict['local_directory'][model], vname, 'plots')
+    print(env_dict.model_init_time)
+
+    plot_dir = os.path.join(env_dict.local_directory[model], vname, 'plots')
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
     time = da.time.values
+
+    cmap = LoadCmap(env_dict.contourf_colormap[vname])
 
     for i, t in enumerate(time):
         try:
@@ -65,22 +118,29 @@ def Plotting(da, vname, model, parameters_dict):
             if vname == 't_2m':
                 plot_data = plot_data - 273.15  # Convert K to C
 
-            title_init_time = datetime.datetime.fromisoformat(env_dict['model_init_time']).strftime('%Y-%m-%d %H:%M')
+            title_init_time = datetime.datetime.fromisoformat(env_dict.model_init_time).strftime('%Y-%m-%d %H:%M')
             title_current_time = t.astype('datetime64[s]').tolist().strftime('%Y-%m-%d %H:%M')
 
-            levels = np.linspace(plot_data.min() - (plot_data.min() * 0.2),
-                                 plot_data.max() + (plot_data.max() * 0.2), 20)
+            if vname == 'taod_dust':
+                levels = np.linspace(0.05,0.75,15)
+                extend = 'max'
+            else:
+                levels = np.linspace(plot_data.min() - (plot_data.min() * 0.2),
+                                     plot_data.max() + (plot_data.max() * 0.2), 20)
+                extend = 'both' 
 
             plt.figure(figsize=[12, 6])
             ax = plt.axes(projection=ccrs.PlateCarree())  # Define the map projection
-            cf = ax.contourf(plot_data.lon, plot_data.lat, plot_data.values, levels=levels, cmap='RdBu_r', extend='both')
-            ax.coastlines()  # Add coastlines
-            plt.title(f'{env_dict["long_names"][vname]}', loc='center')
+            ax.coastlines('110m', color='0.4')  # Add coastlines
+            ax.add_feature(cfeature.LAND, facecolor='#bebebe')
+            ax.add_feature(cfeature.OCEAN, facecolor='#37648b')
+            cf = ax.contourf(plot_data.lon, plot_data.lat, plot_data.values, levels=levels, cmap=cmap, extend=extend)
+            plt.title(f'{env_dict.long_names[vname]}', loc='center', fontsize=10)
             plt.title('Init. time: ' + title_init_time, loc='left', fontsize=10)
             plt.title('Current: ' + title_current_time, loc='right', fontsize=10)
             plt.xlabel('Longitude')
             plt.ylabel('Latitude')
-            plt.colorbar(cf, shrink=0.8, extend='both')
+            plt.colorbar(cf, shrink=0.8, extend='both',extendrect=True)
 
             plt.savefig(os.path.join(plot_dir, f'{vname}_{plot_time}.jpg'), bbox_inches='tight')
             plt.close()
@@ -109,17 +169,21 @@ def DataProcessing(model, parameters_dict):
     vnames = [x for x in env_dict.__getattribute__((model + '_variable'))]
     for vname in vnames:
         fdirs = os.path.join(env_dict.local_directory[model], vname)
-        fnames = [x for x in os.listdir(fdirs) if '.grib2' in x and '.nc' not in x]
+        fnames = [x for x in os.listdir(fdirs) if '.grib2' in x and '.nc' not in x and '.grib1' not in x]
         fnames.sort()
         fnames = [os.path.join(fdirs, x) for x in fnames]
 
         da_list = []
         for fpath in fnames:
-            fpath_nc = Grib2nc(fpath, source_grid,
-                               target_grid)
+            if os.path.exists(fpath+'.nc') == False:
+                fpath_nc = Grib2nc(fpath, source_grid,
+                                   target_grid)  # Assuming Grib2nc is a function defined elsewhere
+            else:
+                fpath_nc = fpath + '.nc'
             da = xr.load_dataset(fpath_nc, engine='netcdf4')
-            varkey = list(da.keys())
-            da_list.append(da[varkey[0]])
+            #varkey = list(da.keys())
+            print(da)
+            da_list.append(da[env_dict.short_names[vname]])
 
         # Concatenate along time dimension and store in dictionary
         data_arrays[vname] = xr.concat(da_list, dim='time')
