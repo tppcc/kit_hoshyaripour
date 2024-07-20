@@ -67,6 +67,9 @@ class EnvParameters:
             't_2m': '2t',
             'asob_s': 'ASOB_S',
             'aswdifd_s': 'ASWDIFD_S',
+            'DUSTA0': 'DUSTA0',
+            'DUSTB0': 'DUSTB0',
+            'DUSTC0': 'DUSTC0'
         }
         # Path to source file grid (ICON), can be obtained in MPI server. ICON-NWP: R3B6
         self.source_grid = {

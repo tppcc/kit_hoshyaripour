@@ -47,7 +47,7 @@ def LoadCmap(fpath):
 
     return cmap
 
-def Dust2PM(field, mean, sigma, parameters_dict):
+def Dust2PM(field, parameters_dict):
     r"""
     Convert Dust mass concentration to PM2.5 and PM 10 based on the CDF of log-normal mode
     :param field: Dust field to be computed
@@ -64,10 +64,16 @@ def Dust2PM(field, mean, sigma, parameters_dict):
 
     env_dict = parameters_dict
 
-    for vname in env_dict.:
+    vnames = [x for x in env_dict.__getattribute__(('dust_log_nor'))]
 
-    pm25 = LogNorm2CDF(da, mean, sigma, 2.5e-6)
-    pm10 = LogNorm2CDF(da, mean, sigma, 1e-5)
+    pm25 = xr.zeros_like(field[vnames[0]])
+    pm10 = xr.zeros_like(field[vnames[0]])
+
+    for vname in parameters_dict.dust_log_norm:
+        mean, sigma = parameters_dict.dust_log_norm[vname]
+        if vname in field:
+            pm25 = pm25 + LogNorm2CDF(field[vname], mean, sigma, 2.5e-6)
+            pm10 = pm10 + LogNorm2CDF(field[vname], mean, sigma, 1e-5)
 
     # Format the datetime object
     return pm25, pm10
@@ -75,7 +81,7 @@ def Dust2PM(field, mean, sigma, parameters_dict):
 
 def LogNorm2CDF(da, mean, sigma, d_upper):
     r"""
-    Compute the CDF of a log-normal distrubution function
+    Compute the CDF of a log-normal distrubution function in SI UNIT
     :param field: Total concentration field
     :type: xr.DataArray
     :param mean: Mean of the dust distribution
@@ -210,7 +216,7 @@ def PreprocessingMeteogram(da, target_lon, target_lat):
 
 
 def Meteogram(plot_dir, target_lon, target_lat, t_2m_dict, asob_s_dict, aswdifd_s_dict,
-              parameters_dict):
+              pm25_dict, pm10_dict, parameters_dict):
     r"""
     Entry Point 3 for dust_board routine
     Produce a point based product Meteogram. Currently:
@@ -231,7 +237,7 @@ def Meteogram(plot_dir, target_lon, target_lat, t_2m_dict, asob_s_dict, aswdifd_
                     'Downward Surface Diffused Radiation [W m$^{-2}$]']
     title_init_time = LocalTime(datetime.datetime.fromisoformat(env_dict.model_init_time))
 
-    fig, axes = plt.subplots(3, 1, figsize=[10, 20])
+    fig, axes = plt.subplots(3, 1, figsize=[10, 25])
     #plt.rc('font', size=20)
 
     for i in range(len(vnames)):
@@ -246,8 +252,26 @@ def Meteogram(plot_dir, target_lon, target_lat, t_2m_dict, asob_s_dict, aswdifd_
                          color=env_dict.meteogram_colour[model], linewidth=2,
                          label=env_dict.model_long_names[model])
             axes[i].set_title(env_dict.long_names[vname], loc='center')
-            axes[i].set_title('Init. time: ' + title_init_time, loc='left', size=14)
             axes[i].set_ylabel(plot_y_label[i])
             axes[i].set_xlabel('Time [h]')
             axes[i].legend()
+
+    i += 1
+    pm_colour = ['red', 'blue', 'green', 'orange']
+    pm_label = ['PM2.5 (ICON-ART)', 'PM2.5 (ICON-ART-EU)', 'PM10 (ICON-ART)', 'PM10 (ICON-ART-EU)']
+    plot_y_label = 'Number concentration'
+    j = 0
+    for vname in ['pm25', 'pm10']:
+        for model in ['dwd_art', 'dwd_art_eu']:
+            da = locals()[vname + '_dict'][model]
+            interpolated_da = PreprocessingMeteogram(da, target_lon, target_lat)
+            axes[i].plot(interpolated_da.time, interpolated_da,
+                         color=env_dict.meteogram_colour[model], linewidth=2,
+                         label=env_dict.model_long_names[model])
+            j += 1
+    axes[i].set_title('PM 2.5 and PM 10 concentration', loc='center')
+    axes[i].set_ylabel(plot_y_label)
+    axes[i].set_xlabel('Time [h]')
+    axes[i].legend()
+    plt.title('Init. time: ' + title_init_time, loc='left', size=14)
     plt.savefig(plot_dir, bbox_inches='tight')

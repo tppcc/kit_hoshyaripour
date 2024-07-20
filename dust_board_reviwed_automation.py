@@ -15,6 +15,9 @@ for model in environmental_dict.model_url:
 
 ############# End of adaptive script
 
+pm25_art, pm10_art = Dust2PM(da_dwd_art, environmental_dict)
+pm25_art_eu, pm10_art_eu = Dust2PM(da_dwd_art_eu, environmental_dict)
+
 # Plotting Meteogram
 t_2m_dict = {
     #'dwd_nwp': da_dwd_nwp['t_2m'],
@@ -34,9 +37,17 @@ asob_s_dict = {
     'dwd_art': da_dwd_art['asob_s'],
     #'dwd_art_eu': da_dwd_art_eu['asob_s']
 }
+pm25_dict = {
+    'dwd_art': pm25_art,
+    'dwd_art_eu': pm25_art_eu
+}
+pm10_dict = {
+    'dwd_art': pm10_art,
+    'dwd_art_eu': pm10_art_eu
+}
 
-Meteogram('fr_stadt.jpg', 7.83212, 48.00152, t_2m_dict, asob_s_dict, aswdifd_s_dict, environmental_dict)
-Meteogram('ka_nordwest.jpg', 8.35565, 49.02859, t_2m_dict, asob_s_dict, aswdifd_s_dict, environmental_dict)
-Meteogram('st_cannstatt.jpg', 9.22986, 48.80893, t_2m_dict, asob_s_dict, aswdifd_s_dict, environmental_dict)
-Meteogram('kn_biberach.jpg', 9.79987, 48.08985, t_2m_dict, asob_s_dict, aswdifd_s_dict, environmental_dict)
-Meteogram('hn_stadt.jpg', 9.22474, 49.16553, t_2m_dict, asob_s_dict, aswdifd_s_dict, environmental_dict)
+Meteogram('fr_stadt.jpg', 7.83212, 48.00152, t_2m_dict, asob_s_dict, aswdifd_s_dict, pm25_dict, pm10_dict, environmental_dict)
+Meteogram('ka_nordwest.jpg', 8.35565, 49.02859, t_2m_dict, asob_s_dict, aswdifd_s_dict, pm25_dict, pm10_dict, environmental_dict)
+Meteogram('st_cannstatt.jpg', 9.22986, 48.80893, t_2m_dict, asob_s_dict, aswdifd_s_dict, pm25_dict, pm10_dict, environmental_dict)
+Meteogram('kn_biberach.jpg', 9.79987, 48.08985, t_2m_dict, asob_s_dict, aswdifd_s_dict, pm25_dict, pm10_dict, environmental_dict)
+Meteogram('hn_stadt.jpg', 9.22474, 49.16553, t_2m_dict, asob_s_dict, aswdifd_s_dict, pm25_dict, pm10_dict, environmental_dict)

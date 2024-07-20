@@ -51,22 +51,22 @@ def HttpsScan(url):
         # Close the browser
         driver.quit()
 
-    '''
-    try:
-        response = requests.get(url)
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.content, 'html.parser')
-            links = soup.find_all('a', href=True)
-            urls = [urljoin(url, link['href']) for link in links]
-            files = [link['href'] for link in links]
-            return urls, files
-        else:
-            print(f"Failed to scan directory: {response.status_code}")
-            return []
-    except Exception as e:
-        print(f"Error: {e}")
+"""
+try:
+    response = requests.get(url)
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.content, 'html.parser')
+        links = soup.find_all('a', href=True)
+        urls = [urljoin(url, link['href']) for link in links]
+        files = [link['href'] for link in links]
+        return urls, files
+    else:
+        print(f"Failed to scan directory: {response.status_code}")
         return []
-    '''
+except Exception as e:
+    print(f"Error: {e}")
+    return []
+"""
 
 def RequestWebFile(file_url, fname, directory):
     r"""
