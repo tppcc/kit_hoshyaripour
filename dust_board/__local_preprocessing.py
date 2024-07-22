@@ -266,8 +266,8 @@ def Meteogram(plot_dir, target_lon, target_lat, t_2m_dict, asob_s_dict, aswdifd_
             da = locals()[vname + '_dict'][model]
             interpolated_da = PreprocessingMeteogram(da, target_lon, target_lat)
             axes[i].plot(interpolated_da.time, interpolated_da,
-                         color=env_dict.meteogram_colour[model], linewidth=2,
-                         label=env_dict.model_long_names[model])
+                         color=pm_colour[j], linewidth=2,
+                         label=pm_label[j])
             j += 1
     axes[i].set_title('PM 2.5 and PM 10 concentration', loc='center')
     axes[i].set_ylabel(plot_y_label)
