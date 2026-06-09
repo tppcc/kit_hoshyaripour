@@ -41,11 +41,19 @@ python ~/ifs2icon_vert.py tq_field.nc o3_field.nc surface_parameter.nc ifs_model
 
 '''
 
+# [FIX] Extracted iconremap path as a module-level constant for consistency.
+#       The original code had two different casings: 'Icon_tools' vs 'icon_tools'.
+ICONREMAP_BIN = '/home/b/b380982/icon_tools/dwd_icon_tools/icontools/iconremap'
+
+
 class ifs2icon_vert:
-    def __init__(self, fname_tq, fname_var, fname_surface, fname_ifs_model_level, fname_icon_model_level, target_level, fname_ifs_hgrid, fname_icon_hgrid, output_grid_name, var_nametable):         # Declare some global variables
-        var_nametable = pd.read_csv(var_nametable)
+    def __init__(self, fname_tq, fname_var, fname_surface, fname_ifs_model_level, fname_icon_model_level, target_level, fname_ifs_hgrid, fname_icon_hgrid, output_grid_name, var_nametable):
+        # [FIX] Added skipinitialspace=True to handle the space after the comma
+        #       in the CSV header ("source_name, target_name").
+        var_nametable = pd.read_csv(var_nametable, skipinitialspace=True)
         self.cwd = os.getcwd()
-        self.ifs_model_level = ifs_model_level
+        # [FIX] Removed erroneous line: self.ifs_model_level = ifs_model_level
+        #       'ifs_model_level' was not a parameter and would have raised NameError.
         self.fname_tq = fname_tq
         self.fname_var = fname_var
         self.fname_surface = fname_surface
@@ -60,14 +68,20 @@ class ifs2icon_vert:
 
         self.r = 287.06         #Gas constant
         self.amd = 28.97        #Molar weight of dry air
-        self.fname_var_hinterpolated = os.path.basename(self.fname_var)     #Change the name to target_%s
-        output_grid_name, _ = os.path.splitext(os.basename(fname_var))
-        self.fname_var_hinterpolated= "%s/remap_%s_%s" % (self.cwd, output_grid_name,self.fname_var_hinterpolated)
+        # [FIX] os.basename -> os.path.basename (os.basename does not exist).
+        self.fname_var_hinterpolated = os.path.basename(self.fname_var)
+        # [FIX] Removed the erroneous line:
+        #         output_grid_name, _ = os.path.splitext(os.basename(fname_var))
+        #       This shadowed the output_grid_name parameter with the stem of
+        #       fname_var, producing a wrong filename like "remap_o3_field_o3_field.nc"
+        #       instead of "remap_R02B06_o3_field.nc".
+        self.fname_var_hinterpolated = "%s/remap_%s_%s" % (self.cwd, output_grid_name, self.fname_var_hinterpolated)
 
     def main(self):             #Main call for the ifs2icon_vert_class
         self.hi_variable()
         self.hi_parameters()
         z_full = self.gp_ml()
+        # [FIX] os.basename -> os.path.basename
         self.fname_z_full = os.path.basename(self.fname_tq)
         self.fname_z_full = "%s/geopotential_%s" % (self.cwd, self.fname_z_full)
         #Write attribute and convert to netCDF
@@ -125,7 +139,12 @@ class ifs2icon_vert:
             z_full.loc[dict(level=level)] = z_f
             z_half.loc[dict(level=level)] = z_h
 
-        for level in p_half.level.values[:0:-1]:       #Exclude lowest and top level
+        # [FIX] Changed slice from [:0:-1] to [-2:0:-1].
+        #       The original [:0:-1] produced [N, N-1, ..., 1], re-processing the
+        #       lowest level N (already handled above) and including the top level 1
+        #       (handled separately below).  The correct slice [-2:0:-1] yields
+        #       [N-1, N-2, ..., 2], i.e. intermediate levels only.
+        for level in p_half.level.values[-2:0:-1]:       #Exclude lowest and top level
             dlog_p = np.log(p_half.loc[dict(level=level)]/ p_half.loc[dict(level=level - 1)])
             alpha = 1. - ((p_half.loc[dict(level=level - 1)] / (p_half.loc[dict(level=level)] - p_half.loc[dict(level=level - 1)])) * dlog_p)
 
@@ -158,8 +177,13 @@ class ifs2icon_vert:
 
     def interpolation(self):
         # Note: the following code is written via bash
-        os.system("module load cdo")
+        # [FIX] Removed os.system("module load cdo").
+        #       'module load' only affects the subshell of that single os.system call
+        #       and has no effect on subsequent calls.  CDO must be available in PATH
+        #       before running this script (e.g. via the job submission script).
+
         # Check icon grid, convert to netcdf if grb is found
+        # [FIX] os.basename -> os.path.basename
         fname_icon_model_level_nc, _ = os.path.splitext(os.path.basename(self.icon_model_level))
         fname_icon_model_level_nc = fname_icon_model_level_nc + '.nc'
         fname_icon_model_level_nc = os.path.join(os.path.dirname(self.icon_model_level), fname_icon_model_level_nc)
@@ -173,18 +197,20 @@ class ifs2icon_vert:
         os.system("cdo divc,9.80665 -selname,z %s HFL_CAMS.nc" %(self.fname_z_full))
         # interpolate vertically from source (CAMS) to target (ICON) HFLs
         for varname in self.target_namelist:
-            os.system("cdo -intlevelx3d,%s/HFL_CAMS.nc -selname,%s %s/%s %s/HFL_ICON.nc %s/icon_level_remap_%s_%s.nc" %(self.cwd, varname, self.cwd, self.fname_var_hinterpolated, self.cwd, self.cwd, self.output_grid_name,varname))
-            
-    
-    def hi_variable(self):     #Variable Namelist for Horizontal Interpolation
-        os.system("rm %s/NAMELIST_ICON_VARIABLE_TABLE" %(self.cwd))     # Clean up previous file
-        os.system("rm %s/NAMELIST_ifs2icon_horizontal" %(self.cwd))
-        #Declare Namelist
-        for source_var in self.source_namelist:
-            for target_Var in self.target_namelist:
-                with open("%s/NAMELIST_ICON_VARIABLE_TABLE" %(self.cwd), "a") as file:
-                    file.write("&input_field_nml\n inputname    = \"%s\"\n outputname    = \"%s\"\n intp_method     = 3\n/\n!" %(source_var, target_var))
+            os.system("cdo -intlevelx3d,%s/HFL_CAMS.nc -selname,%s %s/%s %s/HFL_ICON.nc %s/icon_level_remap_%s_%s.nc" %(self.cwd, varname, self.cwd, self.fname_var_hinterpolated, self.cwd, self.cwd, self.output_grid_name, varname))
 
+    def hi_variable(self):     #Variable Namelist for Horizontal Interpolation
+        os.system("rm -f %s/NAMELIST_ICON_VARIABLE_TABLE" %(self.cwd))     # Clean up previous file
+        os.system("rm -f %s/NAMELIST_ifs2icon_horizontal" %(self.cwd))
+        # [FIX] Replaced nested loop (Cartesian product) with zip() to pair
+        #       source and target names row-by-row from the nametable.
+        # [FIX] Fixed variable name: target_Var -> target_var (consistent casing).
+        for source_var, target_var in zip(self.source_namelist, self.target_namelist):
+            with open("%s/NAMELIST_ICON_VARIABLE_TABLE" %(self.cwd), "a") as file:
+                file.write("&input_field_nml\n inputname    = \"%s\"\n outputname    = \"%s\"\n intp_method     = 3\n/\n!" %(source_var, target_var))
+
+        # [FIX] Changed .format() to % operator.  The original string used %s
+        #       placeholders but called .format(), which does not substitute into %s.
         text = """&remap_nml
                 in_grid_filename  = '%s/%s'
                 in_filename       = '%s/%s'
@@ -195,23 +221,30 @@ class ifs2icon_vert:
                 out_filetype      = 5
                 l_have3dbuffer    = .false.
                 ncstorage_file    = "ncstorage.tmp"
-                /""".format(self.cwd, self.fname_ifs_hgrid, self.cwd, self.fname_var, self.cwd, self.fname_icon_hgrid, self.cwd, self.fname_var_hinterpolated)
+                /""" % (self.cwd, self.fname_ifs_hgrid, self.cwd, self.fname_var, self.cwd, self.fname_icon_hgrid, self.cwd, self.fname_var_hinterpolated)
 
         with open("%s/NAMELIST_ifs2icon_horizontal" %(self.cwd), "w") as file:
             file.write(text)
 
+        # [FIX] Added the iconremap call.  The original hi_variable() wrote the
+        #       namelists but never executed iconremap, so the variable field was
+        #       never horizontally interpolated.
+        os.system('%s --remapnml NAMELIST_ifs2icon_horizontal --input_field_nml NAMELIST_ICON_VARIABLE_TABLE' % ICONREMAP_BIN)
+
 
     def hi_parameters(self):     #Namelist for boundary condition Horizontal Interpolation
-        self.fname_tq_hinterpolated = "remap_%s" %(os.basename(self.fname_tq))
-        self.fname_surface_hinterpolated = "remap_%s" %(os.basename(self.fname_surface))
+        # [FIX] os.basename -> os.path.basename (two occurrences)
+        self.fname_tq_hinterpolated = "remap_%s" %(os.path.basename(self.fname_tq))
+        self.fname_surface_hinterpolated = "remap_%s" %(os.path.basename(self.fname_surface))
         #TQ
-        os.system("rm %s/NAMELIST_ICON_VARIABLE_TABLE" %(self.cwd))     # Clean up previous file
-        os.system("rm %s/NAMELIST_ifs2icon_horizontal" %(self.cwd))
+        os.system("rm -f %s/NAMELIST_ICON_VARIABLE_TABLE" %(self.cwd))     # Clean up previous file
+        os.system("rm -f %s/NAMELIST_ifs2icon_horizontal" %(self.cwd))
         #Declare Namelist
         for var in ['t', 'q']:
             with open("%s/NAMELIST_ICON_VARIABLE_TABLE" %(self.cwd), "a") as file:
                 file.write("&input_field_nml\n inputname    = \"%s\"\n outputname    = \"%s\"\n intp_method     = 3\n/\n!" %(var, var))
 
+        # [FIX] Changed .format() to % operator (same issue as hi_variable).
         text = """&remap_nml
                 in_grid_filename  = '%s/%s'
                 in_filename       = '%s/%s'
@@ -222,21 +255,27 @@ class ifs2icon_vert:
                 out_filetype      = 5
                 l_have3dbuffer    = .false.
                 ncstorage_file    = "ncstorage.tmp"
-                /""".format(self.cwd, self.fname_ifs_hgrid, self.cwd, self.fname_tq, self.cwd, self.fname_icon_hgrid, self.cwd, self.fname_tq_hinterpolated)
+                /""" % (self.cwd, self.fname_ifs_hgrid, self.cwd, self.fname_tq, self.cwd, self.fname_icon_hgrid, self.cwd, self.fname_tq_hinterpolated)
 
         with open("%s/NAMELIST_ifs2icon_horizontal" %(self.cwd), "w") as file:
             file.write(text)
         #Cast to bash
-        os.system('/home/b/b380982/Icon_tools/dwd_icon_tools/icontools/iconremap --remapnml NAMELIST_ifs2icon_horizontal --input_field_nml NAMELIST_ICON_VARIABLE_TABLE')
+        os.system('%s --remapnml NAMELIST_ifs2icon_horizontal --input_field_nml NAMELIST_ICON_VARIABLE_TABLE' % ICONREMAP_BIN)
 
         #SP,SZ
-        os.system("rm %s/NAMELIST_ICON_VARIABLE_TABLE" %(self.cwd))     # Clean up previous file
-        os.system("rm %s/NAMELIST_ifs2icon_horizontal" %(self.cwd))
-        #Declare Namelist
-        for var in ['sp', 'sz']:
+        os.system("rm -f %s/NAMELIST_ICON_VARIABLE_TABLE" %(self.cwd))     # Clean up previous file
+        os.system("rm -f %s/NAMELIST_ifs2icon_horizontal" %(self.cwd))
+        # [FIX] Changed 'sz' to 'z'.  The IFS/CAMS surface geopotential variable
+        #       is named 'z', not 'sz'.  The get_surface_parameter() method reads
+        #       da.z, so the name after remapping must also be 'z'.
+        for var in ['sp', 'z']:
             with open("%s/NAMELIST_ICON_VARIABLE_TABLE" %(self.cwd), "a") as file:
                 file.write("&input_field_nml\n inputname    = \"%s\"\n outputname    = \"%s\"\n intp_method     = 3\n/\n!" %(var, var))
 
+        # [FIX] Changed .format() to % operator.
+        # [FIX] Changed in_filename from self.fname_tq to self.fname_surface.
+        #       The original passed the T/Q file as input for the surface-parameter
+        #       remap, so iconremap would not find sp and z in that file.
         text = """&remap_nml
                 in_grid_filename  = '%s/%s'
                 in_filename       = '%s/%s'
@@ -247,12 +286,12 @@ class ifs2icon_vert:
                 out_filetype      = 5
                 l_have3dbuffer    = .false.
                 ncstorage_file    = "ncstorage.tmp"
-                /""".format(self.cwd, self.fname_ifs_hgrid, self.cwd, self.fname_tq, self.cwd, self.fname_icon_hgrid, self.cwd, self.fname_surface_hinterpolated)
+                /""" % (self.cwd, self.fname_ifs_hgrid, self.cwd, self.fname_surface, self.cwd, self.fname_icon_hgrid, self.cwd, self.fname_surface_hinterpolated)
 
         with open("%s/NAMELIST_ifs2icon_horizontal" %(self.cwd), "w") as file:
             file.write(text)
         #Cast to bash
-        os.system('/home/b/b380982/icon_tools/dwd_icon_tools/icontools/iconremap --remapnml NAMELIST_ifs2icon_horizontal --input_field_nml NAMELIST_ICON_VARIABLE_TABLE')
+        os.system('%s --remapnml NAMELIST_ifs2icon_horizontal --input_field_nml NAMELIST_ICON_VARIABLE_TABLE' % ICONREMAP_BIN)
 
 
 def main():
@@ -268,12 +307,26 @@ def main():
     parser.add_argument("fname_ifs_hgrid", type=str, help="File name containing IFS Horizontal grid file")
     parser.add_argument("fname_icon_hgrid", type=str, help="File name containing ICON Horizontal grid file")
     parser.add_argument("output_grid_name", type=str, help="Name of the ICON horizontal grid")
-    parser.add_argument("var_nametable", type=int, help="csv table of variable names to be interpolated")
+    # [FIX] Changed type from int to str — this is a file path, not a number.
+    parser.add_argument("var_nametable", type=str, help="csv table of variable names to be interpolated")
 
     args = parser.parse_args()
 
-    # Create an instance of the class with the parsed arguments
-    instance = ifs2icon_vert(args.fname_tq, args.fname_var, args.fname_surface, args.ifs_model_level, args.icon_model_level, args.target_level, args.var_namelist)
+    # [FIX] Added missing arguments (fname_ifs_hgrid, fname_icon_hgrid,
+    #       output_grid_name) and corrected args.var_namelist -> args.var_nametable
+    #       to match the argparse definition above.
+    instance = ifs2icon_vert(
+        args.fname_tq,
+        args.fname_var,
+        args.fname_surface,
+        args.ifs_model_level,
+        args.icon_model_level,
+        args.target_level,
+        args.fname_ifs_hgrid,
+        args.fname_icon_hgrid,
+        args.output_grid_name,
+        args.var_nametable
+    )
     instance.main()
 
 if __name__ == "__main__":
